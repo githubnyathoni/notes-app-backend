@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const Hapi = require('@hapi/hapi');
 const notes = require('./api/notes');
+const ClientError = require('./exceptions/ClientError');
 const NotesService = require('./services/postgres/NotesService');
 const NotesValidator = require('./validator/notes');
 
@@ -24,6 +25,19 @@ const init = async () => {
       service: notesService,
       validator: NotesValidator,
     },
+  });
+
+  server.ext('onPreResponse', ({ response }, h) => {
+    if (response instanceof ClientError) {
+      const newResponse = h.response({
+        status: 'fail',
+        message: response.message,
+      });
+      newResponse.code(response.statusCode);
+      return newResponse;
+    }
+
+    return response.continue || response;
   });
 
   await server.start();
